@@ -18,6 +18,7 @@ library = true
 auto-executables = false
 auto-examples = false
 auto-tests = false
+link = ["stdc++"]
 
 [[test]]
 name = "fstring_test"
