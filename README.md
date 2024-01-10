@@ -1,2 +1,2 @@
 # fstring
-A Fortran string library that also supports regular expressions.
+A modern Fortran string library.

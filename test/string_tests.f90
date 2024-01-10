@@ -309,71 +309,15 @@ contains
     end function
 
 ! ------------------------------------------------------------------------------
-    function test_regex_match() result(rst)
-        ! Arguments
-        logical :: rst
-
-        ! Parameters
-        character(len = *), parameter :: str = "string."
-        character(len = *), parameter :: pattern = "(str)(.*)"
-
-        ! Local Variables
-        type(string), allocatable, dimension(:) :: x
-
-        ! Initialization
-        rst = .true.
-
-        ! Test 1
-        x = regex_match(str, pattern)
-        if (size(x) /= 3) then
-            rst = .false.
-            print "(A)", "TEST FAILED: test_regex_match -1"
-            return
-        end if
-        if (x(1) /= "string.") then
-            rst = .false.
-            print "(A)", "TEST FAILED: test_regex_match -2"
-        end if
-    end function
-
-! ------------------------------------------------------------------------------
-    function test_regex_search() result(rst)
-        ! Arguments
-        logical :: rst
-
-        ! Parameters
-        character(len = *), parameter :: str = "Test with numbers 123456."
-        character(len = *), parameter :: pattern = "(\d)(.*)"
-
-        ! Local Variables
-        type(string), allocatable, dimension(:) :: x
-
-        ! Initialization
-        rst = .true.
-
-        ! Test 1
-        x = regex_search(str, pattern)
-        if (size(x) /= 3) then
-            rst = .false.
-            print "(A)", "TEST FAILED: test_regex_search -1"
-            return
-        end if
-        if (x(1) /= "123456.") then
-            rst = .false.
-            print "(A)", "TEST FAILED: test_regex_search -2"
-        end if
-    end function
-
-! ------------------------------------------------------------------------------
     function test_replace() result(rst)
         ! Arguments
         logical :: rst
 
         ! Parameters
         character(len = *), parameter :: str = "This is just a test string."
-        character(len = *), parameter :: pattern = "(t)"
-        character(len = *), parameter :: substr = "T"
-        character(len = *), parameter :: ans = "This is jusT a TesT sTring."
+        character(len = *), parameter :: old = "is"
+        character(len = *), parameter :: substr = "IS"
+        character(len = *), parameter :: ans = "This IS just a test string."
 
         ! Local Variables
         type(string) :: x
@@ -382,7 +326,7 @@ contains
         rst = .true.
 
         ! Test 1
-        x = replace(str, pattern, substr)
+        x = replace(str, old, substr)
         if (x /= ans) then
             rst = .false.
             print "(A)", "TEST FAILED: test_replace -1"

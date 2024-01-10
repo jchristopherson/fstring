@@ -1,6 +1,6 @@
 ---
 project: FSTRING
-summary: A Fortran string library that also supports regular expressions.
+summary: A modern Fortran string library.
 project_github: https://github.com/jchristopherson/fstring
 author: Jason Christopherson
 author_email: jchristopherson@hotmail.com

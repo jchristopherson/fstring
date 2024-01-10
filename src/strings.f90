@@ -24,8 +24,6 @@ module strings
     public :: scan
     public :: remove
     public :: insert
-    public :: regex_match
-    public :: regex_search
     public :: replace
     public :: to_upper
     public :: to_lower
@@ -188,24 +186,6 @@ module strings
         module procedure :: string_insert_string
     end interface
 
-    interface regex_match
-        !! Looks for sequences that match the requested pattern.  The entire
-        !! target sequence must match the regular expression for this function 
-        !! to succeed.
-        module procedure :: char_regex_match_char
-        module procedure :: char_regex_match_string
-        module procedure :: string_regex_match_char
-        module procedure :: string_regex_match_string
-    end interface
-
-    interface regex_search
-        !! Looks for sequences that match the requested pattern.
-        module procedure :: char_regex_search_char
-        module procedure :: char_regex_search_string
-        module procedure :: string_regex_search_char
-        module procedure :: string_regex_search_string
-    end interface
-
     interface replace
         !! Replaces the substring identified by the supplied regular 
         !! expression pattern with a new substring.
@@ -249,36 +229,6 @@ module strings
             integer(c_int) :: rst
         end function
     end interface
-
-    interface ! from regular_expressions.h
-        pure subroutine c_regex_match(src, pattern, numbuff, buffsizes, &
-            buffer, itemsizes, count) bind(C, name = "c_regex_match")
-            use iso_c_binding
-            character(kind = c_char), intent(in) :: src(*), pattern(*)
-            integer(c_int), intent(in), value :: numbuff, buffsizes
-            type(c_ptr), intent(out) :: buffer(numbuff)
-            integer(c_int), intent(out) :: itemsizes(numbuff), count
-        end subroutine
-
-        pure subroutine c_regex_search(src, pattern, numbuff, buffsizes, &
-            buffer, itemsizes, count) bind(C, name = "c_regex_search")
-            use iso_c_binding
-            character(kind = c_char), intent(in) :: src(*), pattern(*)
-            integer(c_int), intent(in), value :: numbuff, buffsizes
-            type(c_ptr), intent(out) :: buffer(numbuff)
-            integer(c_int), intent(out) :: itemsizes(numbuff), count
-        end subroutine
-
-        pure subroutine c_regex_replace(src, pattern, rplc, buffsize, buffer, &
-            nbuff) bind(C, name = "c_regex_replace")
-            use iso_c_binding
-            character(kind = c_char), intent(in) :: src(*), pattern(*), rplc(*)
-            integer(c_int), intent(in), value :: buffsize
-            character(kind = c_char), intent(out) :: buffer(*)
-            integer(c_int), intent(out) :: nbuff
-        end subroutine
-    end interface
-
 contains
 ! ------------------------------------------------------------------------------
     pure function str_get(this, i) result(rst)
@@ -1365,6 +1315,250 @@ contains
         end if
     end function
 
+
+! ------------------------------------------------------------------------------
+    pure elemental function char_replace_char_char(src, old, substr) &
+        result(rst)
+        !! Replaces all instances of a substring within a parent string.
+        character(len = *), intent(in) :: src
+            !! The string on which to operate.
+        character(len = *), intent(in) :: old
+            !! The string to replace.
+        character(len = *), intent(in) :: substr
+            !! The new substring.
+        type(string) :: rst
+            !! The resulting string.
+
+        ! Local Variables
+        logical :: first
+        integer(int32) :: i, j, n, nold, nnew
+        character(len = :), allocatable :: buffer
+
+        ! Initialization
+        n = len_trim(src)
+        nold = len_trim(old)
+        nnew = len_trim(substr)
+
+        ! Quick Return
+        if (n == 0) then
+            allocate(character(len = 0) :: rst%m_str)
+            return
+        end if
+
+        ! Process
+        i = 1
+        j = 1
+        first = .true.
+        do while (j < n)
+            ! Find the next occurrence of OLD
+            i = index(src(j:n), old)
+            if (i < 1) exit
+
+            ! If we're here, we've found the substring
+            if (first) then
+                allocate(buffer, source = src(1:i-1))
+            else
+                buffer = buffer // src(j:i-1)
+            end if
+            j = i + nold - 1
+        end do
+
+        ! Output
+        if (allocated(buffer)) then
+            allocate(rst%m_str, source = buffer)
+        else
+            allocate(rst%m_str, source = src)
+        end if
+    end function
+
+    ! ----------
+    pure elemental function char_replace_string_char(src, old, substr) &
+        result(rst)
+        !! Replaces all instances of a substring within a parent string.
+        character(len = *), intent(in) :: src
+            !! The string on which to operate.
+        type(string), intent(in) :: old
+            !! The string to replace.
+        character(len = *), intent(in) :: substr
+            !! The new substring.
+        type(string) :: rst
+            !! The resulting string.
+
+        if (allocated(old%m_str)) then
+            rst = replace(src, old%m_str, substr)
+        else
+            rst = replace(src, "", substr)
+        end if
+    end function
+
+    ! ----------
+    pure elemental function char_replace_char_string(src, old, substr) &
+        result(rst)
+        !! Replaces all instances of a substring within a parent string.
+        character(len = *), intent(in) :: src
+            !! The string on which to operate.
+        character(len = *), intent(in) :: old
+            !! The string to replace.
+        type(string), intent(in) :: substr
+            !! The new substring.
+        type(string) :: rst
+            !! The resulting string.
+
+        if (allocated(substr%m_str)) then
+            rst = replace(src, old, substr%m_str)
+        else
+            rst = replace(src, old, "")
+        end if
+    end function
+
+    ! ----------
+    pure elemental function char_replace_string_string(src, old, substr) &
+        result(rst)
+        !! Replaces all instances of a substring within a parent string.
+        character(len = *), intent(in) :: src
+            !! The string on which to operate.
+        type(string), intent(in) :: old
+            !! The string to replace.
+        type(string), intent(in) :: substr
+            !! The new substring.
+        type(string) :: rst
+            !! The resulting string.
+
+        if (allocated(old%m_str)) then
+            if (allocated(substr%m_str)) then
+                rst = replace(src, old%m_str, substr%m_str)
+            else
+                rst = replace(src, old%m_str, "")
+            end if
+        else
+            if (allocated(substr%m_str)) then
+                rst = replace(src, "", substr%m_str)
+            else
+                rst = replace(src, "", "")
+            end if
+        end if
+    end function
+
+    ! ----------
+    pure elemental function string_replace_char_char(src, old, substr) &
+        result(rst)
+        !! Replaces all instances of a substring within a parent string.
+        type(string), intent(in) :: src
+            !! The string on which to operate.
+        character(len = *), intent(in) :: old
+            !! The string to replace.
+        character(len = *), intent(in) :: substr
+            !! The new substring.
+        type(string) :: rst
+            !! The resulting string.
+
+        if (allocated(src%m_str)) then
+            rst = replace(src%m_str, old, substr)
+        else
+            rst = replace("", old, substr)
+        end if
+    end function
+
+    ! ----------
+    pure elemental function string_replace_string_char(src, old, substr) &
+        result(rst)
+        !! Replaces all instances of a substring within a parent string.
+        type(string), intent(in) :: src
+            !! The string on which to operate.
+        type(string), intent(in) :: old
+            !! The string to replace.
+        character(len = *), intent(in) :: substr
+            !! The new substring.
+        type(string) :: rst
+            !! The resulting string.
+
+        if (allocated(src%m_str)) then
+            if (allocated(old%m_str)) then
+                rst = replace(src%m_str, old%m_str, substr)
+            else
+                rst = replace(src%m_str, "", substr)
+            end if
+        else
+            if (allocated(old%m_str)) then
+                rst = replace("", old%m_str, substr)
+            else
+                rst = replace("", "", substr)
+            end if
+        end if
+    end function
+
+    ! ----------
+    pure elemental function string_replace_char_string(src, old, substr) &
+        result(rst)
+        !! Replaces all instances of a substring within a parent string.
+        type(string), intent(in) :: src
+            !! The string on which to operate.
+        character(len = *), intent(in) :: old
+            !! The string to replace.
+        type(string), intent(in) :: substr
+            !! The new substring.
+        type(string) :: rst
+            !! The resulting string.
+
+        if (allocated(src%m_str)) then
+            if (allocated(substr%m_str)) then
+                rst = replace(src%m_str, old, substr%m_str)
+            else
+                rst = replace(src%m_str, old, "")
+            end if
+        else
+            if (allocated(substr%m_str)) then
+                rst = replace("", old, substr%m_str)
+            else
+                rst = replace("", old, "")
+            end if
+        end if
+    end function
+
+    ! ----------
+    pure elemental function string_replace_string_string(src, old, substr) &
+        result(rst)
+        !! Replaces all instances of a substring within a parent string.
+        type(string), intent(in) :: src
+            !! The string on which to operate.
+        type(string), intent(in) :: old
+            !! The string to replace.
+        type(string), intent(in) :: substr
+            !! The new substring.
+        type(string) :: rst
+            !! The resulting string.
+
+        if (allocated(src%m_str)) then
+            if (allocated(old%m_str)) then
+                if (allocated(substr%m_str)) then
+                    rst = replace(src%m_str, old%m_str, substr%m_str)
+                else
+                    rst = replace(src%m_str, old%m_str, "")
+                end if
+            else
+                if (allocated(substr%m_str)) then
+                    rst = replace(src%m_str, "", substr%m_str)
+                else
+                    rst = replace(src%m_str, "", "")
+                end if
+            end if
+        else
+            if (allocated(old%m_str)) then
+                if (allocated(substr%m_str)) then
+                    rst = replace("", old%m_str, substr%m_str)
+                else
+                    rst = replace("", old%m_str, "")
+                end if
+            else
+                if (allocated(substr%m_str)) then
+                    rst = replace("", "", substr%m_str)
+                else
+                    rst = replace("", "", "")
+                end if
+            end if
+        end if
+    end function
+
 ! ******************************************************************************
 ! STRING_BUILDER ROUTINES
 ! ******************************************************************************
@@ -1452,457 +1646,6 @@ contains
             !! The lenght of the stored string.
 
         rst = this%m_length
-    end function
-
-! ******************************************************************************
-! REGULAR EXPRESSION ROUTINES
-! ******************************************************************************
-    pure function char_regex_match_char(src, pattern) result(rst)
-        !! Looks for sequences that match the requested pattern.  The entire
-        !! target sequence must match the regular expression for this function 
-        !! to succeed.
-        character(len = *), intent(in) :: src
-            !! The target string.
-        character(len = *), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), allocatable, dimension(:) :: rst
-            !! A list of all matching sequences.
-
-        ! Parameters
-        integer(c_int), parameter :: buffer_size = 2048
-        integer(c_int), parameter :: buffer_count = 1024
-
-        ! Local Variables
-        integer(c_int) :: i, count
-        type(c_ptr), allocatable, dimension(:) :: buffer
-        integer(c_int), allocatable, dimension(:) :: sizeList
-        character(kind = c_char, len = :), allocatable, target, &
-            dimension(:) :: bufferStrings
-        character(kind = c_char), allocatable, dimension(:) :: csrc, cpattern
-
-        ! Initialization
-        count = 0
-        allocate(buffer(buffer_count))
-        allocate(sizeList(buffer_count), source = 0)
-        allocate(character(kind = c_char, len = buffer_size) :: &
-            bufferStrings(buffer_count))
-        do i = 1, buffer_count
-            buffer(i) = c_loc(bufferStrings(i))
-        end do
-
-        ! Process
-        allocate(csrc, source = to_c_string(src))
-        allocate(cpattern, source = to_c_string(pattern))
-        call c_regex_match(csrc, cpattern, buffer_count, buffer_size, buffer, &
-            sizeList, count)
-
-        allocate(rst(count))
-        if (count > 0) then
-            do i = 1, count
-                rst(i) = c_string_to_string(bufferStrings(i), sizeList(i))
-            end do
-        end if
-    end function
-
-    ! -----------
-    pure function char_regex_match_string(src, pattern) result(rst)
-        !! Looks for sequences that match the requested pattern.  The entire
-        !! target sequence must match the regular expression for this function 
-        !! to succeed.
-        character(len = *), intent(in) :: src
-            !! The target string.
-        type(string), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), allocatable, dimension(:) :: rst
-            !! A list of all matching sequences.
-
-        if (allocated(pattern%m_str)) then
-            rst = char_regex_match_char(src, pattern%m_str)
-        else
-            rst = char_regex_match_char(src, "")
-        end if
-    end function
-
-    ! -----------
-    pure function string_regex_match_char(src, pattern) result(rst)
-        !! Looks for sequences that match the requested pattern.  The entire
-        !! target sequence must match the regular expression for this function 
-        !! to succeed.
-        type(string), intent(in) :: src
-            !! The target string.
-        character(len = *), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), allocatable, dimension(:) :: rst
-            !! A list of all matching sequences.
-
-        if (allocated(src%m_str)) then
-            rst = char_regex_match_char(src%m_str, pattern)
-        else
-            rst = char_regex_match_char("", pattern)
-        end if
-    end function
-
-    ! -----------
-    pure function string_regex_match_string(src, pattern) result(rst)
-        !! Looks for sequences that match the requested pattern.  The entire
-        !! target sequence must match the regular expression for this function 
-        !! to succeed.
-        type(string), intent(in) :: src
-            !! The target string.
-        type(string), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), allocatable, dimension(:) :: rst
-            !! A list of all matching sequences.
-
-        if (allocated(src%m_str)) then
-            if (allocated(pattern%m_str)) then
-                rst = char_regex_match_char(src%m_str, pattern%m_str)
-            else
-                rst = char_regex_match_char(src%m_str, "")
-            end if
-        else
-            if (allocated(pattern%m_str)) then
-                rst = char_regex_match_char("", pattern%m_str)
-            else
-                rst = char_regex_match_char("", "")
-            end if
-        end if
-    end function
-
-! ------------------------------------------------------------------------------
-    pure function char_regex_search_char(src, pattern) result(rst)
-        !! Looks for sequences that match the requested pattern.
-        character(len = *), intent(in) :: src
-            !! The target string.
-        character(len = *), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), allocatable, dimension(:) :: rst
-            !! A list of all matching sequences.
-
-        ! Parameters
-        integer(c_int), parameter :: buffer_size = 2048
-        integer(c_int), parameter :: buffer_count = 1024
-
-        ! Local Variables
-        integer(c_int) :: i, count
-        type(c_ptr), allocatable, dimension(:) :: buffer
-        integer(c_int), allocatable, dimension(:) :: sizeList
-        character(kind = c_char, len = :), allocatable, target, &
-            dimension(:) :: bufferStrings
-        character(kind = c_char), allocatable, dimension(:) :: csrc, cpattern
-
-        ! Initialization
-        count = 0
-        allocate(buffer(buffer_count))
-        allocate(sizeList(buffer_count), source = 0)
-        allocate(character(kind = c_char, len = buffer_size) :: &
-            bufferStrings(buffer_count))
-        do i = 1, buffer_count
-            buffer(i) = c_loc(bufferStrings(i))
-        end do
-
-        ! Process
-        allocate(csrc, source = to_c_string(src))
-        allocate(cpattern, source = to_c_string(pattern))
-        call c_regex_search(csrc, cpattern, buffer_count, buffer_size, buffer, &
-            sizeList, count)
-
-        allocate(rst(count))
-        if (count > 0) then
-            do i = 1, count
-                rst(i) = c_string_to_string(bufferStrings(i), sizeList(i))
-            end do
-        end if
-    end function
-
-    ! ----------
-    pure function char_regex_search_string(src, pattern) result(rst)
-        !! Looks for sequences that match the requested pattern.
-        character(len = *), intent(in) :: src
-            !! The target string.
-        type(string), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), allocatable, dimension(:) :: rst
-            !! A list of all matching sequences.
-
-        if (allocated(pattern%m_str)) then
-            rst = char_regex_search_char(src, pattern%m_str)
-        else
-            rst = char_regex_search_char(src, "")
-        end if
-    end function
-
-    ! ----------
-    pure function string_regex_search_char(src, pattern) result(rst)
-        !! Looks for sequences that match the requested pattern.
-        type(string), intent(in) :: src
-            !! The target string.
-        character(len = *), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), allocatable, dimension(:) :: rst
-            !! A list of all matching sequences.
-
-        if (allocated(src%m_str)) then
-            rst = char_regex_search_char(src%m_str, pattern)
-        else
-            rst = char_regex_search_char("", pattern)
-        end if
-    end function
-
-    ! ----------
-    pure function string_regex_search_string(src, pattern) result(rst)
-        !! Looks for sequences that match the requested pattern.
-        type(string), intent(in) :: src
-            !! The target string.
-        type(string), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), allocatable, dimension(:) :: rst
-            !! A list of all matching sequences.
-
-        if (allocated(src%m_str)) then
-            if (allocated(pattern%m_str)) then
-                rst = char_regex_search_char(src%m_str, pattern%m_str)
-            else
-                rst = char_regex_search_char(src%m_str, "")
-            end if
-        else
-            if (allocated(pattern%m_str)) then
-                rst = char_regex_search_char("", pattern%m_str)
-            else
-                rst = char_regex_search_char("", "")
-            end if
-        end if
-    end function
-
-! ------------------------------------------------------------------------------
-    pure elemental function char_replace_char_char(src, pattern, substr) &
-        result(rst)
-        !! Replaces the substring identified by the supplied regular 
-        !! expression pattern with a new substring.
-        character(len = *), intent(in) :: src
-            !! The string on which to operate.
-        character(len = *), intent(in) :: pattern
-            !! The regular expression pattern.
-        character(len = *), intent(in) :: substr
-            !! The new substring.
-        type(string) :: rst
-            !! The resulting string.
-
-        ! Local Variables
-        integer(c_int) :: count, bufferSize
-        character(kind = c_char), allocatable, dimension(:) :: buffer, csrc, &
-            cpattern, csubstr
-
-        ! Initialization
-        count = 0
-        bufferSize = len(src) * len(substr)
-        allocate(buffer(bufferSize), source = c_null_char)
-
-        ! Process
-        allocate(csrc, source = to_c_string(src))
-        allocate(cpattern, source = to_c_string(pattern))
-        allocate(csubstr, source = to_c_string(substr))
-        call c_regex_replace(csrc, cpattern, csubstr, bufferSize, buffer, count)
-        if (count > 0) then
-            rst = to_string(buffer, count)
-        else
-            allocate(character(len = 0) :: rst%m_str)
-        end if
-    end function
-
-    ! ----------
-    pure elemental function char_replace_string_char(src, pattern, substr) &
-        result(rst)
-        !! Replaces the substring identified by the supplied regular 
-        !! expression pattern with a new substring.
-        character(len = *), intent(in) :: src
-            !! The string on which to operate.
-        type(string), intent(in) :: pattern
-            !! The regular expression pattern.
-        character(len = *), intent(in) :: substr
-            !! The new substring.
-        type(string) :: rst
-            !! The resulting string.
-
-        if (allocated(pattern%m_str)) then
-            rst = replace(src, pattern%m_str, substr)
-        else
-            rst = replace(src, "", substr)
-        end if
-    end function
-
-    ! ----------
-    pure elemental function char_replace_char_string(src, pattern, substr) &
-        result(rst)
-        !! Replaces the substring identified by the supplied regular 
-        !! expression pattern with a new substring.
-        character(len = *), intent(in) :: src
-            !! The string on which to operate.
-        character(len = *), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), intent(in) :: substr
-            !! The new substring.
-        type(string) :: rst
-            !! The resulting string.
-
-        if (allocated(substr%m_str)) then
-            rst = replace(src, pattern, substr%m_str)
-        else
-            rst = replace(src, pattern, "")
-        end if
-    end function
-
-    ! ----------
-    pure elemental function char_replace_string_string(src, pattern, substr) &
-        result(rst)
-        !! Replaces the substring identified by the supplied regular 
-        !! expression pattern with a new substring.
-        character(len = *), intent(in) :: src
-            !! The string on which to operate.
-        type(string), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), intent(in) :: substr
-            !! The new substring.
-        type(string) :: rst
-            !! The resulting string.
-
-        if (allocated(pattern%m_str)) then
-            if (allocated(substr%m_str)) then
-                rst = replace(src, pattern%m_str, substr%m_str)
-            else
-                rst = replace(src, pattern%m_str, "")
-            end if
-        else
-            if (allocated(substr%m_str)) then
-                rst = replace(src, "", substr%m_str)
-            else
-                rst = replace(src, "", "")
-            end if
-        end if
-    end function
-
-    ! ----------
-    pure elemental function string_replace_char_char(src, pattern, substr) &
-        result(rst)
-        !! Replaces the substring identified by the supplied regular 
-        !! expression pattern with a new substring.
-        type(string), intent(in) :: src
-            !! The string on which to operate.
-        character(len = *), intent(in) :: pattern
-            !! The regular expression pattern.
-        character(len = *), intent(in) :: substr
-            !! The new substring.
-        type(string) :: rst
-            !! The resulting string.
-
-        if (allocated(src%m_str)) then
-            rst = replace(src%m_str, pattern, substr)
-        else
-            rst = replace("", pattern, substr)
-        end if
-    end function
-
-    ! ----------
-    pure elemental function string_replace_string_char(src, pattern, substr) &
-        result(rst)
-        !! Replaces the substring identified by the supplied regular 
-        !! expression pattern with a new substring.
-        type(string), intent(in) :: src
-            !! The string on which to operate.
-        type(string), intent(in) :: pattern
-            !! The regular expression pattern.
-        character(len = *), intent(in) :: substr
-            !! The new substring.
-        type(string) :: rst
-            !! The resulting string.
-
-        if (allocated(src%m_str)) then
-            if (allocated(pattern%m_str)) then
-                rst = replace(src%m_str, pattern%m_str, substr)
-            else
-                rst = replace(src%m_str, "", substr)
-            end if
-        else
-            if (allocated(pattern%m_str)) then
-                rst = replace("", pattern%m_str, substr)
-            else
-                rst = replace("", "", substr)
-            end if
-        end if
-    end function
-
-    ! ----------
-    pure elemental function string_replace_char_string(src, pattern, substr) &
-        result(rst)
-        !! Replaces the substring identified by the supplied regular 
-        !! expression pattern with a new substring.
-        type(string), intent(in) :: src
-            !! The string on which to operate.
-        character(len = *), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), intent(in) :: substr
-            !! The new substring.
-        type(string) :: rst
-            !! The resulting string.
-
-        if (allocated(src%m_str)) then
-            if (allocated(substr%m_str)) then
-                rst = replace(src%m_str, pattern, substr%m_str)
-            else
-                rst = replace(src%m_str, pattern, "")
-            end if
-        else
-            if (allocated(substr%m_str)) then
-                rst = replace("", pattern, substr%m_str)
-            else
-                rst = replace("", pattern, "")
-            end if
-        end if
-    end function
-
-    ! ----------
-    pure elemental function string_replace_string_string(src, pattern, substr) &
-        result(rst)
-        !! Replaces the substring identified by the supplied regular 
-        !! expression pattern with a new substring.
-        type(string), intent(in) :: src
-            !! The string on which to operate.
-        type(string), intent(in) :: pattern
-            !! The regular expression pattern.
-        type(string), intent(in) :: substr
-            !! The new substring.
-        type(string) :: rst
-            !! The resulting string.
-
-        if (allocated(src%m_str)) then
-            if (allocated(pattern%m_str)) then
-                if (allocated(substr%m_str)) then
-                    rst = replace(src%m_str, pattern%m_str, substr%m_str)
-                else
-                    rst = replace(src%m_str, pattern%m_str, "")
-                end if
-            else
-                if (allocated(substr%m_str)) then
-                    rst = replace(src%m_str, "", substr%m_str)
-                else
-                    rst = replace(src%m_str, "", "")
-                end if
-            end if
-        else
-            if (allocated(pattern%m_str)) then
-                if (allocated(substr%m_str)) then
-                    rst = replace("", pattern%m_str, substr%m_str)
-                else
-                    rst = replace("", pattern%m_str, "")
-                end if
-            else
-                if (allocated(substr%m_str)) then
-                    rst = replace("", "", substr%m_str)
-                else
-                    rst = replace("", "", "")
-                end if
-            end if
-        end if
     end function
 
 ! ------------------------------------------------------------------------------
