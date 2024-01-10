@@ -27,6 +27,7 @@ module strings
     public :: replace
     public :: to_upper
     public :: to_lower
+    public :: find
 
 ! ------------------------------------------------------------------------------
     type string
@@ -213,6 +214,14 @@ module strings
         !! modified.
         module procedure :: to_lower_char
         module procedure :: to_lower_string
+    end interface
+
+    interface find
+        !! Finds the starting index of all substrings within a parent string.
+        module procedure :: char_find_char
+        module procedure :: char_find_str
+        module procedure :: str_find_char
+        module procedure :: str_find_str
     end interface
 
 ! ------------------------------------------------------------------------------
@@ -1335,9 +1344,9 @@ contains
         character(len = :), allocatable :: buffer
 
         ! Initialization
-        n = len_trim(src)
-        nold = len_trim(old)
-        nnew = len_trim(substr)
+        n = len(src)
+        nold = len(old)
+        nnew = len(substr)
 
         ! Quick Return
         if (n == 0) then
@@ -1559,6 +1568,114 @@ contains
                 else
                     rst = replace("", "", "")
                 end if
+            end if
+        end if
+    end function
+
+! ------------------------------------------------------------------------------
+    pure function char_find_char(str, substr) result(rst)
+        !! Finds the starting index of all substrings within a parent string.
+        character(len = *), intent(in) :: str
+            !! The string to search.
+        character(len = *), intent(in) :: substr
+            !! The substring to search for.
+        integer(int32), allocatable, dimension(:) :: rst
+            !! An array containing the starting index of each occurrence of
+            !! substr in str.
+
+        ! Local Variables
+        integer(int32) :: i, j, ind, n, nsub
+        integer(int32), allocatable, dimension(:) :: buffer
+
+        ! Initialization
+        n = len(str)
+        nsub = len(substr)
+        allocate(buffer(n))
+        i = 0
+        j = 1
+
+        ! Quick Return
+        if (n == 0 .or. nsub == 0) then
+            allocate(rst(0))
+            return
+        end if
+
+        ! Process
+        do while (j < n)
+            ! Find the next occurrence
+            ind = index(str(j:n), substr)
+            if (ind < 1) exit
+            ind = ind + j - 1
+            i = i + 1
+            buffer(i) = ind
+            j = j + nsub + 1
+        end do
+
+        if (i == 0) then
+            allocate(rst(0))
+        else
+            allocate(rst(i), source = buffer(1:i))
+        end if
+    end function
+
+! ----------
+    pure function char_find_str(str, substr) result(rst)
+        !! Finds the starting index of all substrings within a parent string.
+        character(len = *), intent(in) :: str
+            !! The string to search.
+        type(string), intent(in) :: substr
+            !! The substring to search for.
+        integer(int32), allocatable, dimension(:) :: rst
+            !! An array containing the starting index of each occurrence of
+            !! substr in str.
+
+        if (allocated(substr%m_str)) then
+            rst = char_find_char(str, substr%m_str)
+        else
+            rst = char_find_char(str, "")
+        end if
+    end function
+
+! ----------
+    pure function str_find_char(str, substr) result(rst)
+        !! Finds the starting index of all substrings within a parent string.
+        type(string), intent(in) :: str
+            !! The string to search.
+        character(len = *), intent(in) :: substr
+            !! The substring to search for.
+        integer(int32), allocatable, dimension(:) :: rst
+            !! An array containing the starting index of each occurrence of
+            !! substr in str.
+
+        if (allocated(str%m_str)) then
+            rst = char_find_char(str%m_str, substr)
+        else
+            rst = char_find_char("", substr)
+        end if
+    end function
+
+! ----------
+    pure function str_find_str(str, substr) result(rst)
+        !! Finds the starting index of all substrings within a parent string.
+        type(string), intent(in) :: str
+            !! The string to search.
+        type(string), intent(in) :: substr
+            !! The substring to search for.
+        integer(int32), allocatable, dimension(:) :: rst
+            !! An array containing the starting index of each occurrence of
+            !! substr in str.
+
+        if (allocated(str%m_str)) then
+            if (allocated(substr%m_str)) then
+                rst = char_find_char(str%m_str, substr%m_str)
+            else
+                rst = char_find_char(str%m_str, "")
+            end if
+        else
+            if (allocated(substr%m_str)) then
+                rst = char_find_char(str%m_str, substr%m_str)
+            else
+                rst = char_find_char(str%m_str, "")
             end if
         end if
     end function
