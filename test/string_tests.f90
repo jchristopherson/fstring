@@ -407,6 +407,7 @@ contains
         character(len = *), parameter :: substr = "is"
         integer(int32), parameter :: ans1 = 3
         integer(int32), parameter :: ans2 = 6
+        character(len = *), parameter :: str2 = "This is an example string of type type(string)."
 
         ! Local Variables
         integer(int32), allocatable, dimension(:) :: ind
@@ -428,6 +429,22 @@ contains
         if (ind(2) /= ans2) then
             rst = .false.
             print "(A)", "TEST FAILED: test_find 1-3"
+        end if
+
+        ! Test 2
+        ind = find(str2, "string")
+        if (size(ind) /= 2) then
+            rst = .false.
+            print "(A)", "TEST FAILED: test_find 2-1"
+            return
+        end if
+        if (ind(1) /= 20) then
+            rst = .false.
+            print "(A)", "TEST FAILED: test_find 2-2"
+        end if
+        if (ind(2) /= 40) then
+            rst = .false.
+            print "(A)", "TEST FAILED: test_find 2-3"
         end if
     end function
 
