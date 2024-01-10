@@ -1353,18 +1353,22 @@ contains
             ! Find the next occurrence of OLD
             i = index(src(j:n), old)
             if (i < 1) exit
+            i = i + j - 1
 
             ! If we're here, we've found the substring
             if (first) then
                 allocate(buffer, source = src(1:i-1))
+                first = .false.
             else
                 buffer = buffer // src(j:i-1)
             end if
-            j = i + nold - 1
+            buffer = buffer // substr
+            j = i + nold
         end do
 
         ! Output
         if (allocated(buffer)) then
+            if (j < n) buffer = buffer // src(j:n)
             allocate(rst%m_str, source = buffer)
         else
             allocate(rst%m_str, source = src)
