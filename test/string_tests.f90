@@ -315,9 +315,13 @@ contains
 
         ! Parameters
         character(len = *), parameter :: str = "This is just a test string."
-        character(len = *), parameter :: old = "is"
-        character(len = *), parameter :: substr = "IS"
-        character(len = *), parameter :: ans = "This IS just a test string."
+        character(len = *), parameter :: old1 = "is"
+        character(len = *), parameter :: substr1 = "IS"
+        character(len = *), parameter :: ans1 = "ThIS IS just a test string."
+        character(len = *), parameter :: old2 = "string."
+        character(len = *), parameter :: substr2 = "toy"
+        character(len = *), parameter :: ans2 = "This is just a test toy"
+
 
         ! Local Variables
         type(string) :: x
@@ -326,10 +330,24 @@ contains
         rst = .true.
 
         ! Test 1
-        x = replace(str, old, substr)
-        if (x /= ans) then
+        x = replace(str, old1, substr1)
+        if (x /= ans1) then
             rst = .false.
             print "(A)", "TEST FAILED: test_replace -1"
+        end if
+
+        ! Test 2
+        x = replace(str, old2, substr2)
+        if (x /= ans2) then
+            rst = .false.
+            print "(A)", "TEST FAILED: test_replace -2"
+        end if
+
+        ! Test 3
+        x = replace(str, "junk", "more junk")
+        if (x /= str) then
+            rst = .false.
+            print "(A)", "TEST FAILED: test_replace -3"
         end if
     end function
 
