@@ -50,3 +50,10 @@ if (BUILD_TESTING)
     enable_testing()
     add_subdirectory(test)
 endif()
+
+# Examples
+option(BUILD_FSTRING_EXAMPLES "Build FSTRING examples")
+message(STATUS "Build FSTRING examples: ${BUILD_FSTRING_EXAMPLES}")
+if (BUILD_FSTRING_EXAMPLES)
+    add_subdirectory(examples)
+endif()
