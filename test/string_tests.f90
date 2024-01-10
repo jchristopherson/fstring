@@ -398,4 +398,38 @@ contains
     end function
 
 ! ------------------------------------------------------------------------------
+    function test_find() result(rst)
+        ! Arguments
+        logical :: rst
+
+        ! Parameters
+        character(len = *), parameter :: str = "This is just a test string."
+        character(len = *), parameter :: substr = "is"
+        integer(int32), parameter :: ans1 = 3
+        integer(int32), parameter :: ans2 = 6
+
+        ! Local Variables
+        integer(int32), allocatable, dimension(:) :: ind
+
+        ! Initialization
+        rst = .true.
+
+        ! Test 1
+        ind = find(str, substr)
+        if (size(ind) /= 2) then
+            rst = .false.
+            print "(A)", "TEST FAILED: test_find 1-1"
+            return
+        end if
+        if (ind(1) /= ans1) then
+            rst = .false.
+            print "(A)", "TEST FAILED: test_find 1-2"
+        end if
+        if (ind(2) /= ans2) then
+            rst = .false.
+            print "(A)", "TEST FAILED: test_find 1-3"
+        end if
+    end function
+
+! ------------------------------------------------------------------------------
 end module

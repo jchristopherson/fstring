@@ -14,4 +14,5 @@ program main
     if (.not.test_to_upper()) stop 10
     if (.not.test_to_lower()) stop 11
     if (.not.test_replace()) stop 12
+    if (.not.test_find()) stop 13
 end program
