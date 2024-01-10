@@ -33,7 +33,6 @@
 
 # Directories
 build/
-doc/
 
 # VS Code Stuff
 launch.json
