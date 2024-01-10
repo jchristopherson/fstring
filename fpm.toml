@@ -9,7 +9,6 @@ homepage = "https://github.com/jchristopherson/fstring"
 
 [library]
 source-dir = "src"
-include-dir = "include"
 
 [install]
 library = true

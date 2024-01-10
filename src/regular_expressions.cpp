@@ -2,10 +2,31 @@
 #include <string>
 #include <cstring>
 #include <cstdlib>
-#include "regular_expressions.h"
-#include "helper_macros.h"
+// #include "regular_expressions.h"
+// #include "helper_macros.h"
 
 using namespace std;
+
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void c_regex_match(const char *src, const char *pattern, int numbuff, 
+                  int buffsizes, char **buffer, int *itemsizes, int *count);
+
+void c_regex_search(const char *src, const char *pattern, int numbuff,
+                    int buffsizes, char **buffer, int *itemsizes, int *count);
+
+void c_regex_replace(const char *src, const char *pattern, const char *rplc, 
+                     int buffsize, char *buffer, int *nbuff);
+
+#ifdef __cplusplus
+}
+#endif
 
 // References:
 // - http://www.cplusplus.com/reference/regex/regex_match/
