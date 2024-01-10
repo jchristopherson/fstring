@@ -6,7 +6,7 @@ A modern Fortran string library.
 [![Actions Status](https://github.com/jchristopherson/fstring/workflows/fpm/badge.svg)](https://github.com/jchristopherson/fstring/actions)
 
 ## Building fstring
-[CMake](https://cmake.org/)This library can be built using CMake.  Use -DBUILD_TESTING=TRUE only if tests are desired.  If tests are not to be built, then simply omit -DBUILD_TESTING.  The default is a release build static library.
+[CMake](https://cmake.org/) can be used to build this library.  Use -DBUILD_TESTING=TRUE only if tests are desired.  If tests are not to be built, then simply omit -DBUILD_TESTING.  The default is a release build static library.
 ```txt
 cd build
 cmake ../build -DBUILD_TESTING=TRUE
