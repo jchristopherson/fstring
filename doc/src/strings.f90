@@ -1608,7 +1608,7 @@ contains
             ind = ind + j - 1
             i = i + 1
             buffer(i) = ind
-            j = j + nsub + 1
+            j = ind + nsub - 1
         end do
 
         if (i == 0) then
