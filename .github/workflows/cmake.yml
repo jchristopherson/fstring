@@ -124,7 +124,7 @@ jobs:
 
           cat > consumer/main.f90 <<'EOF'
           program main
-            use fstring
+            use strings
             print *, "fstring package found"
           end program main
           EOF
@@ -146,4 +146,4 @@ jobs:
           cmake --build consumer/build
         env:
           FC: ${{ steps.setup-fortran.outputs.fc }}
-          CC: ${{ steps.setup-fortran.outputs.cc }
+          CC: ${{ steps.setup-fortran.outputs.cc }}
