@@ -2,57 +2,148 @@ name: CMake
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   BUILD_TYPE: Release
 
 jobs:
   test:
+    name: ${{ matrix.os }} / ${{ matrix.compiler }} / shared=${{ matrix.shared }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        toolchain:
-          - {compiler: gcc, version: 11}
-          - {compiler: intel-classic, version: '2021.9'}
         include:
           - os: ubuntu-latest
-            toolchain: {compiler: intel, version: '2023.2'}
+            compiler: gcc
+            version: '14'
+            shared: false
+          - os: ubuntu-latest
+            compiler: gcc
+            version: '14'
+            shared: true
+          - os: ubuntu-latest
+            compiler: gcc
+            version: '15'
+            shared: false
+          - os: ubuntu-latest
+            compiler: gcc
+            version: '15'
+            shared: true
+          - os: ubuntu-latest
+            compiler: intel
+            version: '2023.2'
+            shared: false
+          - os: ubuntu-latest
+            compiler: intel
+            version: '2023.2'
+            shared: true
+          - os: macos-latest
+            compiler: gcc
+            version: '14'
+            shared: false
+          - os: macos-latest
+            compiler: gcc
+            version: '14'
+            shared: true
+          - os: windows-latest
+            compiler: gcc
+            version: '14'
+            shared: false
+          - os: windows-latest
+            compiler: gcc
+            version: '14'
+            shared: true
 
     steps:
-      - uses: awvwgk/setup-fortran@v1
+      - uses: actions/checkout@v4
+
+      - uses: fortran-lang/setup-fortran@v1
         id: setup-fortran
         with:
-          compiler: ${{ matrix.toolchain.compiler }}
-          version: ${{ matrix.toolchain.version }}
-
-      - run: ${{ env.FC }} --version
+          compiler: ${{ matrix.compiler }}
+          version: ${{ matrix.version }}
+      
+      - name: Show Fortran compiler version
+        run: ${{ env.FC }} --version
         env:
           FC: ${{ steps.setup-fortran.outputs.fc }}
           CC: ${{ steps.setup-fortran.outputs.cc }}
 
-      - uses: actions/checkout@v3
-      
       - name: Configure CMake
-        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_Fortran_COMPILER=${{ env.FC }} -DBUILD_TESTING=TRUE
-        
+        shell: bash
+        run: |
+          CMAKE_OPTIONS=(
+            -S .
+            -B build
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+            -DCMAKE_Fortran_COMPILER=${{ env.FC }}
+            -DCMAKE_C_COMPILER=${{ env.CC }}
+            -DBUILD_TESTING=TRUE
+            -DBUILD_SHARED_LIBS=${{ matrix.shared && 'TRUE' || 'FALSE' }}
+          )
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            CMAKE_OPTIONS+=( -G "MinGW Makefiles" )
+          fi
+          cmake "${CMAKE_OPTIONS[@]}"
+        env:
+          FC: ${{ steps.setup-fortran.outputs.fc }}
+          CC: ${{ steps.setup-fortran.outputs.cc }}
+
       - name: Build with CMake
-        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
 
       - name: Test with CMake
-        working-directory: ${{github.workspace}}/build
-        run: ctest -C ${{env.BUILD_TYPE}}
+        shell: bash
+        working-directory: build
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            export PATH="$PATH:${MSYS2_MINGW_BIN}"
+          fi
+          ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
 
-      - name: Configure CMake - Shared Library
-        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_Fortran_COMPILER=${{ env.FC }} -DBUILD_TESTING=TRUE -DBUILD_SHARED_LIBS=TRUE
-        
-      - name: Build with CMake - Shared Library
-        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      - name: Install with CMake
+        run: cmake --install build --prefix ${{ github.workspace }}/install --config ${{ env.BUILD_TYPE }}
 
-      - name: Test with CMake - Shared Library
-        working-directory: ${{github.workspace}}/build
-        run: ctest -C ${{env.BUILD_TYPE}}
+      - name: Verify install with CMake consumer
+        shell: bash
+        run: |
+          mkdir -p consumer
+          cat > consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.24)
+          project(fstring_consumer LANGUAGES Fortran)
+
+          find_package(fstring CONFIG REQUIRED)
+
+          add_executable(fstring_consumer main.f90)
+          target_link_libraries(fstring_consumer PRIVATE fstring::fstring)
+          EOF
+
+          cat > consumer/main.f90 <<'EOF'
+          program main
+            use fstring
+            print *, "fstring package found"
+          end program main
+          EOF
+
+          CMAKE_OPTIONS=(
+            -S consumer
+            -B consumer/build
+            -DCMAKE_Fortran_COMPILER=${{ env.FC }}
+            -DCMAKE_C_COMPILER=${{ env.CC }}
+          )
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            INSTALL_PREFIX="${GITHUB_WORKSPACE//\\//}/install"
+            CMAKE_OPTIONS+=( -G "MinGW Makefiles" )
+          else
+            INSTALL_PREFIX="${{ github.workspace }}/install"
+          fi
+          CMAKE_OPTIONS+=( -DCMAKE_PREFIX_PATH="${INSTALL_PREFIX}" )
+          cmake "${CMAKE_OPTIONS[@]}"
+          cmake --build consumer/build
+        env:
+          FC: ${{ steps.setup-fortran.outputs.fc }}
+          CC: ${{ steps.setup-fortran.outputs.cc }
