@@ -124,7 +124,7 @@ jobs:
 
           cat > consumer/main.f90 <<'EOF'
           program main
-            use fstring
+            use strings
             print *, "fstring package found"
           end program main
           EOF
