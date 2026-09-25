@@ -73,6 +73,11 @@ jobs:
           FC: ${{ steps.setup-fortran.outputs.fc }}
           CC: ${{ steps.setup-fortran.outputs.cc }}
 
+      - name: Configure macOS SDK for GCC
+        if: runner.os == 'macOS' && matrix.compiler == 'gcc'
+        shell: bash
+        run: echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> "$GITHUB_ENV"
+
       - name: Configure CMake
         shell: bash
         run: |
@@ -85,6 +90,9 @@ jobs:
             -DBUILD_TESTING=TRUE
             -DBUILD_SHARED_LIBS=${{ matrix.shared && 'TRUE' || 'FALSE' }}
           )
+          if [ "${{ runner.os }}" = "macOS" ] && [ -n "${SDKROOT:-}" ]; then
+            CMAKE_OPTIONS+=( -DCMAKE_OSX_SYSROOT="${SDKROOT}" )
+          fi
           if [ "${{ runner.os }}" = "Windows" ]; then
             CMAKE_OPTIONS+=( -G "MinGW Makefiles" )
           fi
@@ -135,6 +143,9 @@ jobs:
             -DCMAKE_Fortran_COMPILER=${{ env.FC }}
             -DCMAKE_C_COMPILER=${{ env.CC }}
           )
+          if [ "${{ runner.os }}" = "macOS" ] && [ -n "${SDKROOT:-}" ]; then
+            CMAKE_OPTIONS+=( -DCMAKE_OSX_SYSROOT="${SDKROOT}" )
+          fi
           if [ "${{ runner.os }}" = "Windows" ]; then
             INSTALL_PREFIX="${GITHUB_WORKSPACE//\\//}/install"
             CMAKE_OPTIONS+=( -G "MinGW Makefiles" )
@@ -150,4 +161,4 @@ jobs:
           cmake --build consumer/build
         env:
           FC: ${{ steps.setup-fortran.outputs.fc }}
-          CC: ${{ steps.setup-fortran.outputs.cc }
+          CC: ${{ steps.setup-fortran.outputs.cc }}
